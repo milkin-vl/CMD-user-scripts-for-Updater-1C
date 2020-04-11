@@ -1,0 +1,26 @@
+Ежедневно запускаемая очистка в 05-00 (кроме воскресенья) после архивирования всех баз по расписанию
+
+ECHO OFF
+SET PGBIN="C:\Program Files\PostgreSQL\11.5-7.1C\bin\vacuumdb.exe"
+SET PGPASSWORD=***
+%PGBIN% --dbname %base_ref% --host %base_srv% --port 5432 --username postgres --echo --analyze
+
+параметры запуска:
+
+подключение к базе - нет
+резервирование перед запуском - нет
+отчет о завершении на почту - да
+Еженедельно запускаемая очистка и индексация в 01-00 по воскресеньям без предварительного архивирования
+
+ECHO OFF
+SET PGBIN="C:\Program Files\PostgreSQL\11.5-7.1C\bin\"
+SET PGPASSWORD=***
+%PGBIN%vacuumdb.exe --dbname %base_ref% --host %base_srv% --port 5432 --username postgres --full
+%PGBIN%reindexdb.exe --dbname %base_ref% --host %base_srv% --port 5432 --username postgres
+параметры запуска:
+
+подключение к базе - да
+резервирование перед запуском - да
+блокировка - да
+разблокировка по завершении - да
+отчет о завершении на почту - да
