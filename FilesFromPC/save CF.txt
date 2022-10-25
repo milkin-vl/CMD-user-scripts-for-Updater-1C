@@ -1,0 +1,25 @@
+﻿[cmd]
+rem перезаписываем один и тот же файл CF раз в день
+set "FileName=C:\my dir\today.cf"
+
+if not exist "%FileName%" goto FileNotExist
+
+rem получаем часть даты записи файла
+for %%I in ("%FileName%") do set "FileDate=%%~tI"
+
+rem сравним первые 10 значков в строке даты, например 24.10.2022
+if not "%FileDate:~0,10%" == "%DATE:~-10%" goto FileNotToday
+
+Echo "Сегодня файл уже выгружен"
+goto :EndFileCheck
+
+:FileNotToday
+%run_1c_d% /DumpCfg "C:\my dir\today.cf"
+goto :EndFileCheck
+
+:FileNotExist
+%run_1c_d% /DumpCfg "C:\my dir\today.cf"
+
+:EndFileCheck
+set "FileDate="
+set "FileName="
