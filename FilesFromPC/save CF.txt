@@ -1,5 +1,5 @@
 ﻿[cmd]
-rem перезаписываем один и тот же файл CF раз в день
+rem перезаписываем один и тот же файл CF раз в день (с предварительной проверкой наличия, для отказа от операций)
 set "FileName=C:\my dir\today.cf"
 
 if not exist "%FileName%" goto FileNotExist
