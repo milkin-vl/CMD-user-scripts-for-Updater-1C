@@ -1,0 +1,64 @@
+@echo off
+setlocal enabledelayedexpansion
+
+echo =======================================================
+echo ЗАПУСК АВТОМАТИЧЕСКОГО УДАЛЕНИЯ БАЗЫ ИЗ MMC
+echo Имя базы в кластере: "%base_ref%"
+echo Администратор БД 1С: "%base_user%"
+echo ==========================================================
+
+:: 1. НАСТРОЙКА ОКРУЖЕНИЯ
+set "RAS_SERVER=%base_srv%:1545"
+set "RAC_EXE=%bin_path%\rac.exe"
+set "CLUSTER_UUID=093ead7e-7a28-4ea0-a1b7-ad47daf81a03"
+
+:: Временные файлы для безопасного парсинга без падения cmd
+set "TMP_LIST=%TEMP%\ib_list.tmp"
+set "REAL_BASE_ID="
+
+echo [ПОДГОТОВКА] Получаем актуальный список баз с сервера...
+:: Выгружаем только строки с ID баз и их именами
+"%RAC_EXE%" infobase --cluster=%CLUSTER_UUID% summary list | findstr /I "infobase : name" > "%TMP_LIST%"
+
+:: 2. ЦИКЛ ПОИСКА РЕАЛЬНОГО UUID БАЗЫ
+:: Читаем файл построчно. Как только находим имя нашей базы, 
+:: берем UUID из предыдущей сохраненной строки.
+for /f "tokens=1,2 delims=:" %%a in (%TMP_LIST%) do (
+    set "key=%%a"
+    set "val=%%b"
+    
+    :: Очищаем пробелы в начале и конце
+    set "key=!key: =!"
+    set "val=!val: =!"
+
+    if "!key!"=="infobase" (
+        set "current_uuid=!val!"
+    )
+    if "!key!"=="name" (
+        if /i "!val!"=="%base_ref%" (
+            set "REAL_BASE_ID=!current_uuid!"
+        )
+    )
+)
+
+:: Удаляем временный файл списка
+del "%TMP_LIST%" 2>nul
+
+:: Проверяем, удалось ли найти серверный ID
+if "%REAL_BASE_ID%"=="" (
+    echo [ОШИБКА] Не удалось найти серверный UUID для базы "%base_ref%". 
+    echo Возможно, база уже удалена из кластера.
+    exit /b 1
+)
+
+echo [УСПЕХ] Настоящий серверный UUID базы определен: %REAL_BASE_ID%
+
+:: 3. ВЫПОЛНЯЕМ КОМАНДУ УДАЛЕНИЯ СТРОГО ПО СИНТАКСИСУ RAC
+echo [УДАЛЕНИЕ] Запуск удаления базы из кластера и СУБД PostgreSQL...
+"%RAC_EXE%" infobase --cluster=%CLUSTER_UUID% drop --infobase=%REAL_BASE_ID% --infobase-user=%base_user% --infobase-pwd=%base_password% --drop-database
+
+echo.
+echo ===========================================================
+echo Код завершения утилиты 1С RAC (0 - успешно): %ERRORLEVEL%
+echo ===========================================================
+endlocal
